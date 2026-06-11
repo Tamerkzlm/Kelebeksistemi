@@ -96,7 +96,7 @@ export default function KelebekApp() {
       )}
 
       <div className="text-center -mt-2 mb-2 flex flex-col items-center gap-0.5">
-        <span className="text-[10px] text-muted-foreground/50 tracking-widest font-mono">v2.4 — Tabakalı Oransal Dağıtım + Ardışık Kısıt</span>
+        <span className="text-[10px] text-muted-foreground/50 tracking-widest font-mono">v3.0 — Base44 bağımsız, e-Okul parser, serbest navigasyon</span>
         <span className="text-[10px] text-muted-foreground/40 font-mono">
           Yapımcı: Tamer Közleme &nbsp;·&nbsp;
           <a href="https://instagram.com/tamerkzlm" target="_blank" rel="noreferrer" className="hover:text-primary transition-colors">@tamerkzlm</a>
