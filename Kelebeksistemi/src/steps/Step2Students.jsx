@@ -22,33 +22,40 @@ function gradeFrom(sinif) {
   return '9';
 }
 
-async function extractStudentsFromImage(imageUrl, sinifHint) {
-  const result = await db.integrations.Core.InvokeLLM({
-    prompt: `Bu e-Okul öğrenci listesi görüntüsündeki tüm öğrencileri çıkar.
-Sınıf/Şube: "${sinifHint}". Grade (9,10,11,12) sınıf adından çıkar.
-Adları başlık formatına çevir (HATİCE → Hatice).
-Sadece JSON döndür.`,
-    file_urls: [imageUrl],
-    response_json_schema: {
-      type: 'object',
-      properties: {
-        students: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              no: { type: 'string' },
-              adSoyad: { type: 'string' },
-              sinif: { type: 'string' },
-              grade: { type: 'string' },
-              isExempt: { type: 'boolean' },
-            },
+async function extractStudentsFromImage(base64Data, sinifHint) {
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 4000,
+      messages: [{
+        role: 'user',
+        content: [
+          {
+            type: 'image',
+            source: { type: 'base64', media_type: 'image/jpeg', data: base64Data }
           },
-        },
-      },
-    },
+          {
+            type: 'text',
+            text: `Bu e-Okul öğrenci listesi tablosundaki TÜM öğrencileri çıkar.
+${sinifHint ? `Sınıf/Şube: "${sinifHint}"` : 'Sınıf bilgisini tablodan oku.'}
+Kurallar:
+- Adları başlık formatına çevir: ŞEYDA NUR → Şeyda Nur
+- grade: sınıf numarası (9,10,11,12), hazırlık için "haz"
+- sinif: sınıf+şube kodu, örn: "9A", "10B", "HAZA"
+- Sadece JSON döndür, başka hiçbir şey yazma:
+{"students":[{"no":"17","adSoyad":"Şeyda Nur Hüner","sinif":"9A","grade":"9"}]}`
+          }
+        ]
+      }]
+    })
   });
-  return (result.students || []).map(s => ({ ...s, isExempt: false }));
+  const data = await response.json();
+  const text = data.content?.[0]?.text || '';
+  const clean = text.replace(/```json|```/g, '').trim();
+  const parsed = JSON.parse(clean);
+  return (parsed.students || []).map(s => ({ ...s, isExempt: false }));
 }
 
 export default function Step2Students({ students, onChange, onNext, onBack }) {
@@ -86,34 +93,33 @@ export default function Step2Students({ students, onChange, onNext, onBack }) {
     }
   };
 
-  const handleImageSelect = (file) => {
+  const handleImageSelect = async (file) => {
     if (!file) return;
     setImageFile(file);
+    setErrors([]);
     const reader = new FileReader();
-    reader.onload = e => setImagePreview(e.target.result);
+    reader.onload = async (e) => {
+      const dataUrl = e.target.result;
+      setImagePreview(dataUrl);
+      // base64 kısmını ayır
+      const base64Data = dataUrl.split(',')[1];
+      setLoading(true);
+      try {
+        const extracted = await extractStudentsFromImage(base64Data, sinifHint);
+        if (!extracted.length) { setErrors(['Görselden öğrenci çıkarılamadı.']); return; }
+        onChange([...students, ...extracted]);
+        setImagePreview(null); setImageFile(null); setSinifHint('');
+        setAddTab(null);
+      } catch (err) {
+        setErrors([err.message || 'Görüntü işlenirken hata oluştu.']);
+      } finally {
+        setLoading(false);
+      }
+    };
     reader.readAsDataURL(file);
   };
 
-  const handleImageExtract = async () => {
-    if (!imageFile || !sinifHint.trim()) {
-      setErrors(['Lütfen sınıf/şube bilgisini girin.']);
-      return;
-    }
-    setLoading(true);
-    setErrors([]);
-    try {
-      const { file_url } = await db.integrations.Core.UploadFile({ file: imageFile });
-      const extracted = await extractStudentsFromImage(file_url, sinifHint);
-      if (!extracted.length) { setErrors(['Görselden öğrenci çıkarılamadı.']); return; }
-      onChange([...students, ...extracted]);
-      setImagePreview(null); setImageFile(null); setSinifHint('');
-      setAddTab(null);
-    } catch (err) {
-      setErrors([err.message || 'Görüntü işlenirken hata oluştu.']);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const handleImageExtract = () => {};
 
   const handleManualAdd = () => {
     if (!manualForm.adSoyad.trim()) { setErrors(['Ad Soyad gerekli.']); return; }
