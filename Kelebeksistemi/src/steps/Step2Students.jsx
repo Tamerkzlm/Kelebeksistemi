@@ -203,6 +203,13 @@ export default function Step2Students({ students, onChange, onNext, onBack }) {
           className="border-2 border-dashed border-border rounded-2xl p-6 text-center cursor-pointer hover:border-primary hover:bg-accent/30 transition-all mb-4"
         >
           <input ref={fileRef} type="file" accept=".xls,.xlsx" className="hidden" onChange={e => handleXLS(e.target.files[0])} />
+        <div className="flex items-start gap-2 bg-blue-50 border border-blue-200 rounded-xl p-3 mb-3 text-xs text-blue-700">
+          <span className="text-base leading-none mt-0.5">ℹ️</span>
+          <div>
+            <p className="font-semibold mb-0.5">e-Okul'dan nasıl indirilir?</p>
+            <p>e-Okul → Öğrenci İşleri → Raporlar bölümünden <span className="font-semibold">OOG01001R020 – Şube Listesi (Öğrenci No Sıralı)</span> raporunu <span className="font-semibold">Excel (Sadece Veri)</span> formatında indirip buraya yükleyebilirsiniz.</p>
+          </div>
+        </div>
           {loading ? (
             <div className="flex flex-col items-center gap-2">
               <Loader2 className="w-7 h-7 text-primary animate-spin" />
