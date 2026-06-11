@@ -1,4 +1,3 @@
-const db = globalThis.__B44_DB__ || { auth:{ isAuthenticated: async()=>false, me: async()=>null }, entities:new Proxy({}, { get:()=>({ filter:async()=>[], get:async()=>null, create:async()=>({}), update:async()=>({}), delete:async()=>({}) }) }), integrations:{ Core:{ UploadFile:async()=>({ file_url:'' }) } } };
 
 import React, { useState, useRef } from 'react';
 import { Upload, AlertCircle, ChevronRight, ChevronLeft, Search, UserX, UserCheck, Users, ImageIcon, FileSpreadsheet, Loader2, UserPlus, X, Check } from 'lucide-react';
