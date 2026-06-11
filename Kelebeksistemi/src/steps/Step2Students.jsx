@@ -1,8 +1,6 @@
-
 import React, { useState, useRef } from 'react';
-import { Upload, AlertCircle, ChevronRight, ChevronLeft, Search, UserX, UserCheck, Users, FileSpreadsheet, Loader2, UserPlus, X, Check } from 'lucide-react';
+import { Upload, AlertCircle, ChevronRight, ChevronLeft, Search, Users, FileSpreadsheet, Loader2, UserPlus, X, Check } from 'lucide-react';
 import { parseEOkulXLS } from '../lib/parser';
-
 import { DEFAULT_STUDENTS } from '../lib/defaultStudents';
 
 const GRADE_COLORS = {
@@ -22,6 +20,14 @@ function gradeFrom(sinif) {
   return '9';
 }
 
+export default function Step2Students({ students, onChange, onNext, onBack }) {
+  const [addTab, setAddTab] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState([]);
+  const [search, setSearch] = useState('');
+  const [filterGrade, setFilterGrade] = useState('all');
+  const [manualForm, setManualForm] = useState({ no: '', adSoyad: '', sinif: '', grade: '9' });
+  const fileRef = useRef();
 
   const loadDefaults = () => {
     onChange(DEFAULT_STUDENTS);
@@ -43,8 +49,6 @@ function gradeFrom(sinif) {
     }
   };
 
-
-
   const handleManualAdd = () => {
     if (!manualForm.adSoyad.trim()) { setErrors(['Ad Soyad gerekli.']); return; }
     const student = {
@@ -60,13 +64,10 @@ function gradeFrom(sinif) {
   };
 
   const removeStudent = (idx) => onChange(students.filter((_, i) => i !== idx));
-
   const removeClass = (sinif) => onChange(students.filter(s => s.sinif !== sinif));
-
   const toggleExempt = (idx) => onChange(students.map((s, i) => i === idx ? { ...s, isExempt: !s.isExempt } : s));
 
   const grades = [...new Set(students.map(s => s.grade))].sort();
-  // unique siniflar for class-level delete
   const siniflar = [...new Set(students.map(s => s.sinif))].sort();
   const filtered = students.filter(s => {
     const mG = filterGrade === 'all' || s.grade === filterGrade;
@@ -84,7 +85,6 @@ function gradeFrom(sinif) {
         <p className="text-muted-foreground text-sm">Hz. Ayşe Kız AİHL öğrencileri önceden yüklenmiştir. Ek öğrenci ekleyebilirsiniz.</p>
       </div>
 
-      {/* Default load banner */}
       {students.length === 0 && (
         <div className="bg-blue-50 border border-blue-200 rounded-2xl p-5 mb-5 flex items-center justify-between gap-4">
           <div>
@@ -97,7 +97,6 @@ function gradeFrom(sinif) {
         </div>
       )}
 
-      {/* Add options */}
       <div className="flex flex-wrap gap-2 mb-4">
         <button
           onClick={() => setAddTab(addTab === 'xls' ? null : 'xls')}
@@ -105,7 +104,6 @@ function gradeFrom(sinif) {
         >
           <FileSpreadsheet className="w-3.5 h-3.5" /> XLS Ekle
         </button>
-        <button
         <button
           onClick={() => setAddTab(addTab === 'manual' ? null : 'manual')}
           className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-semibold transition-all ${addTab === 'manual' ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground hover:bg-secondary'}`}
@@ -119,38 +117,37 @@ function gradeFrom(sinif) {
         )}
       </div>
 
-      {/* XLS Panel */}
       {addTab === 'xls' && (
-        <div
-          onDrop={e => { e.preventDefault(); handleXLS(e.dataTransfer.files[0]); }}
-          onDragOver={e => e.preventDefault()}
-          onClick={() => fileRef.current?.click()}
-          className="border-2 border-dashed border-border rounded-2xl p-6 text-center cursor-pointer hover:border-primary hover:bg-accent/30 transition-all mb-4"
-        >
-          <input ref={fileRef} type="file" accept=".xls,.xlsx" className="hidden" onChange={e => handleXLS(e.target.files[0])} />
-        <div className="flex items-start gap-2 bg-blue-50 border border-blue-200 rounded-xl p-3 mb-3 text-xs text-blue-700">
-          <span className="text-base leading-none mt-0.5">ℹ️</span>
-          <div>
-            <p className="font-semibold mb-0.5">e-Okul'dan nasıl indirilir?</p>
-            <p>e-Okul → Öğrenci İşleri → Raporlar bölümünden <span className="font-semibold">OOG01001R020 – Şube Listesi (Öğrenci No Sıralı)</span> raporunu <span className="font-semibold">Excel (Sadece Veri)</span> formatında indirip buraya yükleyebilirsiniz.</p>
+        <div className="mb-4 space-y-2">
+          <div className="flex items-start gap-2 bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-700">
+            <span className="text-base leading-none mt-0.5">ℹ️</span>
+            <div>
+              <p className="font-semibold mb-0.5">e-Okul'dan nasıl indirilir?</p>
+              <p>e-Okul → Öğrenci İşleri → Raporlar bölümünden <span className="font-semibold">OOG01001R020 – Şube Listesi (Öğrenci No Sıralı)</span> raporunu <span className="font-semibold">Excel (Sadece Veri)</span> formatında indirip buraya yükleyebilirsiniz.</p>
+            </div>
           </div>
-        </div>
-          {loading ? (
-            <div className="flex flex-col items-center gap-2">
-              <Loader2 className="w-7 h-7 text-primary animate-spin" />
-              <p className="text-sm text-muted-foreground">Dosya okunuyor...</p>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center gap-2">
-              <Upload className="w-7 h-7 text-primary" />
-              <p className="text-sm font-semibold text-foreground">e-Okul XLS dosyasını sürükleyin veya tıklayın</p>
-            </div>
-          )}
+          <div
+            onDrop={e => { e.preventDefault(); handleXLS(e.dataTransfer.files[0]); }}
+            onDragOver={e => e.preventDefault()}
+            onClick={() => fileRef.current?.click()}
+            className="border-2 border-dashed border-border rounded-2xl p-6 text-center cursor-pointer hover:border-primary hover:bg-accent/30 transition-all"
+          >
+            <input ref={fileRef} type="file" accept=".xls,.xlsx" style={{display:'none'}} onChange={e => handleXLS(e.target.files[0])} />
+            {loading ? (
+              <div className="flex flex-col items-center gap-2">
+                <Loader2 className="w-7 h-7 text-primary animate-spin" />
+                <p className="text-sm text-muted-foreground">Dosya okunuyor...</p>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center gap-2">
+                <Upload className="w-7 h-7 text-primary" />
+                <p className="text-sm font-semibold text-foreground">e-Okul XLS dosyasını sürükleyin veya tıklayın</p>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
-
-      {/* Manual Panel */}
       {addTab === 'manual' && (
         <div className="bg-white rounded-2xl border border-border shadow-sm p-4 mb-4">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2">
@@ -194,7 +191,6 @@ function gradeFrom(sinif) {
         </div>
       )}
 
-      {/* Errors */}
       {errors.length > 0 && (
         <div className="bg-red-50 border border-red-200 rounded-xl p-3 mb-4">
           <div className="flex items-center gap-2 text-red-700 font-semibold text-xs mb-1">
@@ -206,7 +202,6 @@ function gradeFrom(sinif) {
         </div>
       )}
 
-      {/* Stats */}
       {students.length > 0 && (
         <>
           <div className="grid grid-cols-3 gap-3 mb-4">
@@ -240,15 +235,11 @@ function gradeFrom(sinif) {
             </select>
           </div>
 
-          {/* Class-level bulk delete */}
           <div className="flex flex-wrap gap-1.5 mb-2">
             <span className="text-xs text-muted-foreground self-center">Şubeyi sil:</span>
             {siniflar.map(sinif => (
-              <button
-                key={sinif}
-                onClick={() => removeClass(sinif)}
-                className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-red-50 border border-red-200 text-xs font-semibold text-red-600 hover:bg-red-100 transition-colors"
-              >
+              <button key={sinif} onClick={() => removeClass(sinif)}
+                className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-red-50 border border-red-200 text-xs font-semibold text-red-600 hover:bg-red-100 transition-colors">
                 {sinif.toUpperCase()} <X className="w-2.5 h-2.5" />
               </button>
             ))}
