@@ -1,6 +1,6 @@
 
 import React, { useState, useRef } from 'react';
-import { Upload, AlertCircle, ChevronRight, ChevronLeft, Search, UserX, UserCheck, Users, ImageIcon, FileSpreadsheet, Loader2, UserPlus, X, Check } from 'lucide-react';
+import { Upload, AlertCircle, ChevronRight, ChevronLeft, Search, UserX, UserCheck, Users, FileSpreadsheet, Loader2, UserPlus, X, Check } from 'lucide-react';
 import { parseEOkulXLS } from '../lib/parser';
 
 import { DEFAULT_STUDENTS } from '../lib/defaultStudents';
@@ -22,56 +22,6 @@ function gradeFrom(sinif) {
   return '9';
 }
 
-async function extractStudentsFromImage(base64Data, sinifHint) {
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 4000,
-      messages: [{
-        role: 'user',
-        content: [
-          {
-            type: 'image',
-            source: { type: 'base64', media_type: 'image/jpeg', data: base64Data }
-          },
-          {
-            type: 'text',
-            text: `Bu e-Okul öğrenci listesi tablosundaki TÜM öğrencileri çıkar.
-${sinifHint ? `Sınıf/Şube: "${sinifHint}"` : 'Sınıf bilgisini tablodan oku.'}
-Kurallar:
-- Adları başlık formatına çevir: ŞEYDA NUR → Şeyda Nur
-- grade: sınıf numarası (9,10,11,12), hazırlık için "haz"
-- sinif: sınıf+şube kodu, örn: "9A", "10B", "HAZA"
-- Sadece JSON döndür, başka hiçbir şey yazma:
-{"students":[{"no":"17","adSoyad":"Şeyda Nur Hüner","sinif":"9A","grade":"9"}]}`
-          }
-        ]
-      }]
-    })
-  });
-  const data = await response.json();
-  const text = data.content?.[0]?.text || '';
-  const clean = text.replace(/```json|```/g, '').trim();
-  const parsed = JSON.parse(clean);
-  return (parsed.students || []).map(s => ({ ...s, isExempt: false }));
-}
-
-export default function Step2Students({ students, onChange, onNext, onBack }) {
-  const [addTab, setAddTab] = useState(null); // null | 'xls' | 'image' | 'manual'
-  const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState([]);
-  const [search, setSearch] = useState('');
-  const [filterGrade, setFilterGrade] = useState('all');
-  // Image tab state
-  const [sinifHint, setSinifHint] = useState('');
-  const [imagePreview, setImagePreview] = useState(null);
-  const [imageFile, setImageFile] = useState(null);
-  // Manual tab state
-  const [manualForm, setManualForm] = useState({ no: '', adSoyad: '', sinif: '', grade: '9' });
-  const fileRef = useRef();
-  const imgRef = useRef();
 
   const loadDefaults = () => {
     onChange(DEFAULT_STUDENTS);
@@ -93,33 +43,7 @@ export default function Step2Students({ students, onChange, onNext, onBack }) {
     }
   };
 
-  const handleImageSelect = async (file) => {
-    if (!file) return;
-    setImageFile(file);
-    setErrors([]);
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      const dataUrl = e.target.result;
-      setImagePreview(dataUrl);
-      // base64 kısmını ayır
-      const base64Data = dataUrl.split(',')[1];
-      setLoading(true);
-      try {
-        const extracted = await extractStudentsFromImage(base64Data, sinifHint);
-        if (!extracted.length) { setErrors(['Görselden öğrenci çıkarılamadı.']); return; }
-        onChange([...students, ...extracted]);
-        setImagePreview(null); setImageFile(null); setSinifHint('');
-        setAddTab(null);
-      } catch (err) {
-        setErrors([err.message || 'Görüntü işlenirken hata oluştu.']);
-      } finally {
-        setLoading(false);
-      }
-    };
-    reader.readAsDataURL(file);
-  };
 
-  const handleImageExtract = () => {};
 
   const handleManualAdd = () => {
     if (!manualForm.adSoyad.trim()) { setErrors(['Ad Soyad gerekli.']); return; }
@@ -182,11 +106,6 @@ export default function Step2Students({ students, onChange, onNext, onBack }) {
           <FileSpreadsheet className="w-3.5 h-3.5" /> XLS Ekle
         </button>
         <button
-          onClick={() => setAddTab(addTab === 'image' ? null : 'image')}
-          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-semibold transition-all ${addTab === 'image' ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground hover:bg-secondary'}`}
-        >
-          <ImageIcon className="w-3.5 h-3.5" /> Ekran Görüntüsü
-        </button>
         <button
           onClick={() => setAddTab(addTab === 'manual' ? null : 'manual')}
           className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-semibold transition-all ${addTab === 'manual' ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground hover:bg-secondary'}`}
@@ -230,44 +149,6 @@ export default function Step2Students({ students, onChange, onNext, onBack }) {
         </div>
       )}
 
-      {/* Image Panel */}
-      {addTab === 'image' && (
-        <div className="bg-white rounded-2xl border border-border shadow-sm p-4 mb-4 space-y-3">
-          <div>
-            <label className="block text-xs font-semibold text-muted-foreground mb-1">Sınıf / Şube (örn: 9c, 10a)</label>
-            <input
-              type="text" value={sinifHint}
-              onChange={e => setSinifHint(e.target.value)}
-              placeholder="9c"
-              className="w-40 px-3 py-1.5 rounded-lg border border-border text-sm outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
-            />
-          </div>
-          {!imagePreview ? (
-            <div
-              onDrop={e => { e.preventDefault(); handleImageSelect(e.dataTransfer.files[0]); }}
-              onDragOver={e => e.preventDefault()}
-              onClick={() => imgRef.current?.click()}
-              className="border-2 border-dashed border-border rounded-xl p-6 text-center cursor-pointer hover:border-primary hover:bg-accent/30 transition-all"
-            >
-              <input ref={imgRef} type="file" accept="image/*" className="hidden" onChange={e => handleImageSelect(e.target.files[0])} />
-              <ImageIcon className="w-7 h-7 text-primary mx-auto mb-1" />
-              <p className="text-sm font-semibold text-foreground">e-Okul ekran görüntüsü yükle</p>
-              <p className="text-xs text-muted-foreground">Görüntüdeki öğrenciler AI ile çıkarılacak</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <img src={imagePreview} alt="Önizleme" className="w-full max-h-56 object-contain rounded-xl border border-border" />
-              <div className="flex gap-2">
-                <button onClick={handleImageExtract} disabled={loading} className="flex items-center gap-1.5 bg-primary text-primary-foreground px-4 py-1.5 rounded-lg text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50">
-                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Users className="w-4 h-4" />}
-                  {loading ? 'Çıkarılıyor...' : 'Öğrencileri Çıkar'}
-                </button>
-                <button onClick={() => { setImagePreview(null); setImageFile(null); }} disabled={loading} className="px-3 py-1.5 rounded-lg text-sm border border-border text-muted-foreground hover:bg-secondary">İptal</button>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
 
       {/* Manual Panel */}
       {addTab === 'manual' && (
